@@ -41,6 +41,8 @@ class Board
 
   def display_board
     board.each_with_index do |row, i| 
+      8.times { print "------------" }
+      puts
       row.each_with_index do |col, i2|
         piece = board[i][i2]
         
@@ -51,11 +53,13 @@ class Board
           piece_name = "#{color} #{type}"
         end
         
-        print %Q"| #{piece_name.center(10)}"
+        print "| #{piece_name.center(10)}"
       end
       
-      puts "|\n\n\n|"
+      puts "|\n|\n|\n"
     end
+    8.times { print "------------" }
+    puts
   end
 
 
