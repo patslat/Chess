@@ -1,5 +1,6 @@
 require 'pp'
 require 'yaml'
+
 class Chess
   def initialize(white, black)
     @board = Board.new
@@ -12,10 +13,7 @@ class Chess
   def play
     while valid_moves?
 
-
       piece, destination = @turn.get_move until valid_move?(piece, destination)
-
-
 
     end
   end
@@ -40,6 +38,31 @@ class Board
     # magic
     @board = generate_board
   end
+
+  def display_board
+    board.each_with_index do |row, i|
+      8.times { print "------------" }
+      puts
+      row.each_with_index do |col, i2|
+        piece = board[i][i2]
+
+        piece_name = ""
+        unless piece == nil
+          color = piece.color.to_s[0]
+          type = piece.class.to_s
+          piece_name = "#{color} #{type}"
+        end
+
+        print "| #{piece_name.center(10)}"
+      end
+
+      puts "|\n|\n|\n"
+    end
+    8.times { print "------------" }
+    puts
+  end
+
+
 
   def generate_board
     Array.new(8) { Array.new(8) }
@@ -185,9 +208,11 @@ class Rook < Piece
   def initialize(location, color)
     super(location, color)
   end
+
   def self.to_sym
     :rook
   end
+
   def valid_moves(board)
     super((1..7), board)
   end
@@ -197,9 +222,11 @@ class Queen < Piece
   def initialize(location, color)
     super(location, color)
   end
+
   def self.to_sym
     :queen
   end
+
   def valid_moves(board)
     super((1..7), board)
   end
@@ -209,9 +236,11 @@ class Bishop < Piece
   def initialize(location, color)
     super(location, color)
   end
+
   def self.to_sym
     :bishop
   end
+
   def valid_moves(board)
     super((1..7), board)
   end
@@ -221,9 +250,11 @@ class King < Piece
   def initalize(location, color)
     super(location, color)
   end
+
   def self.to_sym
     :king
   end
+
   def valid_moves(board)
     super((1..1), board)
   end
@@ -233,9 +264,11 @@ class Knight < Piece
   def initalize(location, color)
     super(location, color)
   end
+
   def self.to_sym
     :knight
   end
+
   def valid_moves(board)
     super((1..1), board)
   end
@@ -280,30 +313,29 @@ if __FILE__ == $PROGRAM_NAME
 
   b.generate_board
   b.generate_pieces
-
+  # pp b
 
 
   dup_board = b.clone
-  #dup_board.board[6][3] = Queen.new([6,3], :black)
-  p Piece.is_in_check?(:white, dup_board)
-  pp b
+  # dup_board.board[6][3] = Queen.new([6,3], :black)
+  # p Piece.is_in_check?(:white, dup_board)
+  b.display_board
 
   # rook = Rook.new([5, 5], :white)
-  # #
-  # p rook.valid_moves(b)
+  # p "rook valid moves: #{rook.valid_moves(b)}"
   # p rook.valid_move?([1,5], b)
-  #
-  #
-  # bish = Bishop.new(b, [6, 6], :white)
-  # p bish.valid_moves
-  #
-  # queen = Queen.new(b, [3, 3], :black)
-  # p queen.valid_moves
 
-  # king = King.new(b, [1, 3], :black)
-#   p king.valid_moves
 
-  #
+  # bish = Bishop.new([6, 6], :white)
+  # p "bishop valid moves: #{bish.valid_moves(b)}"
+
+  # queen = Queen.new([3, 3], :black)
+  # p queen.valid_moves(b)
+
+  # king = King.new([1, 3], :black)
+  # p king.valid_moves(b)
+
+
   # pawn = Pawn.new([2, 4], :white)
   # pawn.color
   # p pawn.valid_moves(b)
