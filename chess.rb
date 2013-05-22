@@ -1,4 +1,5 @@
 require 'pp'
+require 'yaml'
 class Chess
   def initialize(white, black)
     @board = Board.new
@@ -69,7 +70,11 @@ class Board
   end
 
   def board
-    @board.dup
+    @board
+  end
+
+  def clone
+    YAML.load(self.to_yaml)
   end
 
   def color_occupied_by(coord)
@@ -123,13 +128,13 @@ class Piece
 
   end
 
-  def self.is_in_check?(color, board)
+  def self.is_in_check?(color, clone_board)
     king_location = []
 
     bad_guy_color = Chess.opposite_color(color)
     bad_guys = []
 
-    board.each_with_index do |row, rindex|
+    clone_board.board.each_with_index do |row, rindex|
       row.each_with_index do |col, cindex|
         next if col == nil
         bad_guys << col if col.color == bad_guy_color
@@ -139,7 +144,7 @@ class Piece
 
 
     bad_guys.any? do |piece|
-      piece.valid_moves(board).include?(king_location)
+      piece.valid_moves(clone_board).include?(king_location)
     end
 
   end
@@ -278,9 +283,10 @@ if __FILE__ == $PROGRAM_NAME
 
 
 
-  dup_board = b.board
-  dup_board[6][3] = Queen.new([6,3], :black)
-  Piece.is_in_check?(:white, dup_board)
+  dup_board = b.clone
+  #dup_board.board[6][3] = Queen.new([6,3], :black)
+  p Piece.is_in_check?(:white, dup_board)
+  pp b
 
   # rook = Rook.new([5, 5], :white)
   # #
