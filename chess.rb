@@ -1,7 +1,7 @@
 require 'pp'
 class Chess
-	def initialize(white, black)
-		@board = Board.new
+  def initialize(white, black)
+    @board = Board.new
     @white = white
     @black = black
 
@@ -25,7 +25,7 @@ class Chess
 
   def valid_move?(piece, destination)
     return false if @board.piece.color != @turn.color
-    @board.piece.valid_move?(destination) && !puts_king_in_check?
+    @board.piece.valid_move?(destination, @board.board) && !puts_king_in_check?
   end
 
   def self.opposite_color(color)
@@ -35,7 +35,6 @@ end
 
 
 class Board
-  attr_accessor :board
   def initialize
     # magic
     @board = generate_board
@@ -46,24 +45,31 @@ class Board
   end
 
   def generate_pieces
+    what_to_build = { 0 => Rook, 7 => Rook, 1 => Knight, 6 => Knight,
+                      2 => Bishop, 5 => Bishop, 3 => King, 4 => Queen }
+
     8.times do |row_index|
       8.times do |col_index|
-
-        if row_index < 2
-          piece = Piece.new(self, [row_index, col_index], :black)
-        elsif row_index > 5
-          piece = Piece.new(self, [row_index, col_index], :white)
+        if row_index == 0
+          piece = what_to_build[col_index].new([row_index, col_index], :black)
+        elsif row_index == 1
+          piece = Pawn.new([row_index, col_index], :black)
+        elsif row_index == 6
+          piece = Pawn.new([row_index, col_index], :white)
+        elsif row_index == 7
+          piece = what_to_build[col_index].new([row_index, col_index], :white)
         else
           piece = nil
         end
-        # if row_index == 5 && col_index == 5 DELETE THIS TEST
-        #   p "IN THE IF STATEMENT BUILDING ROOK"
-        #   piece = Rook.new(self, [row_index, col_index], :white)
-        # end
-        board[row_index][col_index] = piece
+
+        @board[row_index][col_index] = piece
+
       end
     end
+  end
 
+  def board
+    @board.dup
   end
 
   def color_occupied_by(coord)
@@ -75,14 +81,13 @@ class Board
     end
   end
 
-  def on_board?(coord)
+  def self.on_board?(coord)
     row, col = coord
     (0..7).include?(row) && (0..7).include?(col)
   end
 
 
 end
-
 class Player
   def initialize(color)
     @color = color
@@ -112,19 +117,40 @@ class Piece
            }
 
   attr_accessor :row, :col, :color, :location
-  def initialize(board, location, color)
-    @board = board
+  def initialize(location, color)
     @row, @col = location
     @color = color
 
   end
 
+  def self.is_in_check?(color, board)
+    king_location = []
 
-  def valid_move?(destination)
-    get_valid_moves.include?(destination)
+    bad_guy_color = Chess.opposite_color(color)
+    bad_guys = []
+
+    board.each_with_index do |row, rindex|
+      row.each_with_index do |col, cindex|
+        next if col == nil
+        bad_guys << col if col.color == bad_guy_color
+        king_location = [rindex, cindex] if col.class == King && col.color == color
+      end
+    end
+
+
+    bad_guys.any? do |piece|
+      piece.valid_moves(board).include?(king_location)
+    end
+
   end
 
-  def get_valid_moves(enum) #works for long distance movers
+
+  def valid_move?(destination, board)
+    valid_moves(board).include?(destination)
+    #check?(make_fake_move(board, destination))
+  end
+
+  def valid_moves(enum, board) #works for long distance movers
     valid_moves = []
     piece = self.class.to_sym
     piece = get_pawn_color if piece == :pawn
@@ -132,9 +158,9 @@ class Piece
     DELTAS[piece].each do |delta_row, delta_col|
       enum.each do |n|
         new_coord = [row + (n * delta_row), col + (n * delta_col)]
-        break if !@board.on_board?(new_coord)
+        break if !Board.on_board?(new_coord)
 
-        case @board.color_occupied_by(new_coord)
+        case board.color_occupied_by(new_coord)
         when nil
           valid_moves << new_coord
         when Chess.opposite_color(color)
@@ -148,72 +174,71 @@ class Piece
     end
     valid_moves
   end
-
 end
 
 class Rook < Piece
-  def initialize(board, location, color)
-    super(board, location, color)
+  def initialize(location, color)
+    super(location, color)
   end
   def self.to_sym
     :rook
   end
-  def get_valid_moves
-    super((1..7))
+  def valid_moves(board)
+    super((1..7), board)
   end
 end
 
 class Queen < Piece
-  def initialize(board, location, color)
-    super(board, location, color)
+  def initialize(location, color)
+    super(location, color)
   end
   def self.to_sym
     :queen
   end
-  def get_valid_moves
-    super((1..7))
+  def valid_moves(board)
+    super((1..7), board)
   end
 end
 
 class Bishop < Piece
-  def initialize(board, location, color)
-    super(board, location, color)
+  def initialize(location, color)
+    super(location, color)
   end
   def self.to_sym
     :bishop
   end
-  def get_valid_moves
-    super((1..7))
+  def valid_moves(board)
+    super((1..7), board)
   end
 end
 
 class King < Piece
-  def initalize(board, location, color)
-    super(board, location, color)
+  def initalize(location, color)
+    super(location, color)
   end
   def self.to_sym
     :king
   end
-  def get_valid_moves
-    super((1..1))
+  def valid_moves(board)
+    super((1..1), board)
   end
 end
 
 class Knight < Piece
-  def initalize(board, location, color)
-    super(board, location, color)
+  def initalize(location, color)
+    super(location, color)
   end
   def self.to_sym
     :knight
   end
-  def get_valid_moves
-    super((1..1))
+  def valid_moves(board)
+    super((1..1), board)
   end
 end
 
 class Pawn < Piece
-  def initialize(board, location, color)
-    super(board, location, color)
+  def initialize(location, color)
+    super(location, color)
     @start_location = location
   end
 
@@ -225,11 +250,11 @@ class Pawn < Piece
     color == :black ? :blackpawn : :whitepawn
   end
 
-  def get_valid_moves
+  def valid_moves(board)
     if [row, col] == @start_location
-      valid_moves = super((1..2))
+      valid_moves = super((1..2), board)
     else
-      valid_moves = super((1..1))
+      valid_moves = super((1..1), board)
     end
 
     if color == :black
@@ -239,9 +264,8 @@ class Pawn < Piece
     end
 
     op_color = Chess.opposite_color(color)
-    p op_color
-    valid_moves << eat_left if @board.color_occupied_by(eat_left) == op_color
-    valid_moves << eat_right if @board.color_occupied_by(eat_right) == op_color
+    valid_moves << eat_left if board.color_occupied_by(eat_left) == op_color
+    valid_moves << eat_right if board.color_occupied_by(eat_right) == op_color
     valid_moves
   end
 end
@@ -252,24 +276,30 @@ if __FILE__ == $PROGRAM_NAME
   b.generate_board
   b.generate_pieces
 
-  # rook = Rook.new(b, [5, 5], :white)
-  #
-  # p rook.get_valid_moves
-  # p rook.valid_move?([1,5])
+
+
+  dup_board = b.board
+  dup_board[6][3] = Queen.new([6,3], :black)
+  Piece.is_in_check?(:white, dup_board)
+
+  # rook = Rook.new([5, 5], :white)
+  # #
+  # p rook.valid_moves(b)
+  # p rook.valid_move?([1,5], b)
   #
   #
   # bish = Bishop.new(b, [6, 6], :white)
-  # p bish.get_valid_moves
+  # p bish.valid_moves
   #
   # queen = Queen.new(b, [3, 3], :black)
-  # p queen.get_valid_moves
+  # p queen.valid_moves
 
   # king = King.new(b, [1, 3], :black)
-#   p king.get_valid_moves
-p b
+#   p king.valid_moves
 
-  pawn = Pawn.new(b, [2, 4], :white)
-  pawn.color
-  p pawn.get_valid_moves
+  #
+  # pawn = Pawn.new([2, 4], :white)
+  # pawn.color
+  # p pawn.valid_moves(b)
 
 end
