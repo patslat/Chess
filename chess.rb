@@ -12,7 +12,8 @@ class Chess
   end
 
   def play
-    until p Piece.checkmate?(@turn.color, @board.clone)
+
+    until Piece.checkmate?(@turn.color, @board.clone)
       @board.display_board
 
       prompt_for_move
@@ -26,14 +27,12 @@ class Chess
       @board.make_move(piece, destination)
       swap_turn
     end
+
+    puts "#{Chess.opposite_color(@turn.color).to_s.capitalize} Wins!"
   end
 
   def swap_turn
     @turn = @turn.color == :white ? @black : @white
-  end
-
-  def possible_moves?
-    #check if any valid moves possible, else game over
   end
 
   def valid_move?(piece, destination)
@@ -211,10 +210,8 @@ class Piece
   def self.checkmate?(color, board)
     pieces = Piece.get_all_pieces(color, board)
     pieces.none? do |piece|
-      p piece
       piece.possible_moves(board).any? do |move|
-        p "CHECKING POSSIBLE MOVES FOR #{piece}, #{move}"
-        p piece.valid_move?(move, board)
+        piece.valid_move?(move, board.clone)
       end
     end
   end
@@ -281,12 +278,10 @@ class Piece
         new_coord = [row + (n * delta_row), col + (n * delta_col)]
         break if !Board.on_board?(new_coord)
 
-
-
-        case board.color_occupied_by(new_coord)
-        when nil
+        piece = board.get_piece(new_coord)
+        if piece.nil?
           possible_moves << new_coord
-        when Chess.opposite_color(color)
+        elsif piece.color == Chess.opposite_color(color)
           possible_moves << new_coord unless is_a? Pawn
           break
         else
@@ -440,6 +435,7 @@ if __FILE__ == $PROGRAM_NAME
   player_1 = Player.new(:white)
   player_2 = Player.new(:black)
   chess = Chess.new(player_1, player_2)
-  chess.play
+  p chess.play
+
 
 end
