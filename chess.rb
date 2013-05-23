@@ -7,12 +7,10 @@ class Chess
     @board = Board.new
     @white = white_player
     @black = black_player
-
     @turn = @white
   end
 
   def play
-
     until Piece.checkmate?(@turn.color, @board.clone)
       @board.display_board
 
@@ -21,14 +19,16 @@ class Chess
       piece_location, destination = @turn.get_move
 
       piece = @board.get_piece(piece_location)
-      next if !valid_move?(piece, destination)
-
+      if !valid_move?(piece, destination)
+        prompt_invalid_move
+        next
+      end
 
       @board.make_move(piece, destination)
       swap_turn
     end
 
-    puts "#{Chess.opposite_color(@turn.color).to_s.capitalize} Wins!"
+    winner
   end
 
   def swap_turn
@@ -50,29 +50,37 @@ class Chess
   end
 
   def prompt_for_move
-    puts "#{@turn.color.capitalize}, enter coordinates of piece to move and destination: "
+    puts "#{@turn.color.capitalize}, enter coordinates of piece to move and destination:"
   end
 
-end
+  def prompt_invalid_move
+    puts "Invalid move, please enter another."
+  end
 
+  def winner
+    puts "#{Chess.opposite_color(@turn.color).to_s.capitalize} Wins!"
+  end
+end
 
 class Board
   def initialize
-    # magic
     @board = generate_board
     generate_pieces
   end
 
   def display_board
-    white_pieces = {King => "\u{2654}", Queen => "\u{2655}", Rook => "\u{2656}", Bishop => "\u{2657}", Knight => "\u{2658}", Pawn => "\u{2659}"}
-    black_pieces = {King => "\u{265A}", Queen => "\u{265B}", Rook => "\u{265C}", Bishop => "\u{265D}", Knight => "\u{265E}", Pawn => "\u{265F}"}
+    white_pieces = {King => "\u{2654}", Queen => "\u{2655}",
+                    Rook => "\u{2656}", Bishop => "\u{2657}",
+                    Knight => "\u{2658}", Pawn => "\u{2659}"}
+    black_pieces = {King => "\u{265A}", Queen => "\u{265B}",
+                    Rook => "\u{265C}", Bishop => "\u{265D}",
+                    Knight => "\u{265E}", Pawn => "\u{265F}"}
 
 
     board.each_with_index do |row, i|
       8.times { print "----------" }
       puts
       row.each_with_index do |col, i2|
-        #background_color = {:background => set_background_color(i, i2)}
         piece = board[i][i2]
 
         piece_name = "#{i}#{i2}"
@@ -94,17 +102,6 @@ class Board
     8.times { print "----------" }
     puts
   end
-
-  # def set_background_color(row, col)
-#     if row.even?
-#       return :brown if col.odd?
-#       return :gray
-#     else
-#       return :brown if col.odd?
-#       return :gray
-#     end
-#   end
-
 
   def generate_board
     Array.new(8) { Array.new(8) }
@@ -129,7 +126,6 @@ class Board
         end
 
         @board[row_index][col_index] = piece
-
       end
     end
   end
@@ -168,11 +164,11 @@ class Board
     row, col = coord
     (0..7).include?(row) && (0..7).include?(col)
   end
-
-
 end
+
 class Player
   attr_reader :color
+
   def initialize(color)
     @color = color
   end
@@ -181,8 +177,6 @@ class Player
     piece_row, piece_col, dest_row, dest_col = gets.chomp.scan(/\d/).map(&:to_i)
     [[piece_row, piece_col], [dest_row, dest_col]]
   end
-
-
 end
 
 
@@ -201,19 +195,10 @@ class Piece
            }
 
   attr_accessor :row, :col, :color, :location
+
   def initialize(location, color)
     @row, @col = location
     @color = color
-
-  end
-
-  def self.checkmate?(color, board)
-    pieces = Piece.get_all_pieces(color, board)
-    pieces.none? do |piece|
-      piece.possible_moves(board).any? do |move|
-        piece.valid_move?(move, board.clone)
-      end
-    end
   end
 
   def self.get_all_pieces(color, board)
@@ -228,47 +213,57 @@ class Piece
     colors_pieces
   end
 
-  def self.is_king_in_check?(king_color, clone_board)
-    king_location = []
-
-    bad_guy_color = Chess.opposite_color(king_color)
-    bad_guys = []
-
-    clone_board.board.each_with_index do |row, rindex|
-      row.each_with_index do |piece, cindex|
-        next if piece == nil
-        piece_color = piece.color
-        bad_guys << piece if piece_color == bad_guy_color
-
-        if piece.class == King && piece_color == king_color
-          king_location = [rindex, cindex]
-        end
+  def self.find_king(color, board)
+    8.times do |row|
+      8.times do |col|
+        piece = board.get_piece([row, col])
+        next if piece.nil?
+        return piece if piece.color == color && piece.class == King
       end
     end
+  end
+
+  def self.checkmate?(color, board)
+    pieces = Piece.get_all_pieces(color, board)
+    pieces.none? do |piece|
+      piece.possible_moves(board).any? do |move|
+        piece.valid_move?(move, board)
+      end
+    end
+  end
+
+  def self.is_king_in_check?(king_color, clone_board)
+    king = Piece.find_king(king_color, clone_board)
+    king_loc = [king.row, king.col]
+
+    bad_guy_color = Chess.opposite_color(king_color)
+    bad_guys = Piece.get_all_pieces(bad_guy_color, clone_board)
 
     bad_guys.any? do |piece|
-      piece.possible_moves(clone_board).include?(king_location)
+      possible_moves = piece.possible_moves(clone_board)
+      possible_moves.include?(king_loc)
     end
-
   end
 
 
-  def valid_move?(destination, clone_board)
-    possible_moves(clone_board).include?(destination) &&
-    # king is not in check if you make requested move
-    !Piece.is_king_in_check?(color, make_fake_move(clone_board, destination))
+  def valid_move?(dest, clone_board)
+    possible_moves(clone_board).include?(dest) &&
+    !Piece.is_king_in_check?(color, make_fake_move(clone_board.clone, dest))
   end
 
   def make_fake_move(clone_board, destination)
     dest_row, dest_col = destination
 
-    clone_board.board[row][col] = nil
-    clone_board.board[dest_row][dest_col] = self
-    clone_board
+    duped_piece = clone_board.get_piece([row, col])
+    duped_piece.row = dest_row
+    duped_piece.col = dest_col
 
+    clone_board.board[row][col] = nil
+    clone_board.board[dest_row][dest_col] = duped_piece
+    clone_board
   end
 
-  def possible_moves(enum, board) #works for long distance movers
+  def possible_moves(enum, board)
     possible_moves = []
     piece = self.class.to_sym
     piece = get_pawn_color if piece == :pawn
@@ -277,19 +272,20 @@ class Piece
       enum.each do |n|
         new_coord = [row + (n * delta_row), col + (n * delta_col)]
         break if !Board.on_board?(new_coord)
-
-        piece = board.get_piece(new_coord)
-        if piece.nil?
+        piece_in_target = board.get_piece(new_coord)
+        if piece_in_target.nil?
           possible_moves << new_coord
-        elsif piece.color == Chess.opposite_color(color)
-          possible_moves << new_coord unless is_a? Pawn
+        elsif piece_in_target.color == Chess.opposite_color(self.color)
+          unless piece == :whitepawn || piece == :blackpawn
+            possible_moves << new_coord
+          end
           break
         else
           break
         end
       end
-
     end
+
     possible_moves
   end
 end
@@ -386,56 +382,26 @@ class Pawn < Piece
     end
 
     if color == :black
-      eat_left, eat_right = [row + 1, col - 1], [row + 1, col + 1]
+      left_diag, right_diag = [row + 1, col - 1], [row + 1, col + 1]
     else
-      eat_left, eat_right = [row - 1, col - 1], [row - 1, col + 1]
+      left_diag, right_diag = [row - 1, col - 1], [row - 1, col + 1]
     end
 
     op_color = Chess.opposite_color(color)
-    possible_moves << eat_left if board.color_occupied_by(eat_left) == op_color
-    possible_moves << eat_right if board.color_occupied_by(eat_right) == op_color
+    if board.color_occupied_by(left_diag) == op_color
+      possible_moves << left_diag
+    end
+    if board.color_occupied_by(right_diag) == op_color
+      possible_moves << right_diag
+    end
+
     possible_moves
   end
 end
 
 if __FILE__ == $PROGRAM_NAME
-  # b = Board.new
-  #
-  # b.generate_board
-  # b.generate_pieces
-  # pp b
-
-  #
-  # dup_board = b.clone
-  # dup_board.board[6][3] = Queen.new([6,3], :black)
-  # p Piece.is_in_check?(:white, dup_board)
-  # b.display_board
-
-  # rook = Rook.new([5, 5], :white)
-  # p "rook valid moves: #{rook.possible_moves(b)}"
-  # dup_board.board[5][5] = rook
-  # dup_board.display_board
-  # p rook.valid_move?([1,5], dup_board)
-
-  #
-  # bish = Bishop.new([6, 6], :white)
-  # p "bishop valid moves: #{bish.possible_moves(b)}"
-  #
-  # queen = Queen.new([3, 3], :black)
-  # p queen.possible_moves(b)
-  #
-  # king = King.new([1, 3], :black)
-  # p king.possible_moves(b)
-  #
-  #
-  # pawn = Pawn.new([2, 4], :white)
-  # pawn.color
-  # p pawn.possible_moves(b)
-
   player_1 = Player.new(:white)
   player_2 = Player.new(:black)
   chess = Chess.new(player_1, player_2)
-  p chess.play
-
-
+  chess.play
 end
